@@ -277,22 +277,80 @@ def auth() -> None:
         raise typer.Exit(1) from None
 
 
+def format_room_activity_date(activity_date: object) -> str:
+    """Format room activity date for display."""
+    if not activity_date:
+        return ""
+
+    if hasattr(activity_date, "strftime"):
+        return activity_date.strftime("%Y-%m-%d %H:%M")
+    else:
+        return str(activity_date)[:19]  # Truncate timestamp
+
+
+def display_rooms_with_activity(rooms: list) -> None:
+    """Display rooms with their activity dates."""
+    for room in rooms:
+        activity_date = room.lastActivity or room.created
+        if activity_date:
+            activity_str = format_room_activity_date(activity_date)
+            rprint(f"[bold]{room.title}[/bold]: {room.id} [dim]({activity_str})[/dim]")
+        else:
+            rprint(f"[bold]{room.title}[/bold]: {room.id}")
+
+
+def get_sorted_and_limited_rooms(
+    all_rooms: list, max_rooms: int
+) -> tuple[list, int, int]:
+    """Sort rooms by activity and apply limit."""
+    # Sort by lastActivity (most recent first), with fallback to created date
+    sorted_rooms = sorted(
+        all_rooms, key=lambda x: x.lastActivity or x.created, reverse=True
+    )
+
+    # Apply limit
+    limited_rooms = sorted_rooms[:max_rooms]
+    return limited_rooms, len(all_rooms), len(limited_rooms)
+
+
 @app.command()
-def list_rooms() -> None:
-    """List all Webex rooms you're a member of."""
+def list_rooms(
+    max_rooms: int = typer.Option(
+        default=lambda: int(os.getenv("WEBEX_MAX_ROOMS", "100")),
+        help="Maximum number of rooms to display (default: 100). "
+        "Can also be set via WEBEX_MAX_ROOMS environment variable.",
+    ),
+) -> None:
+    """List Webex rooms you're a member of, sorted by most recent activity."""
     try:
         api = get_webex_api()
 
-        console.print("[blue]Fetching all rooms...[/blue]")
-        rooms = list(api.rooms.list())
+        console.print(f"[blue]Fetching rooms (max: {max_rooms})...[/blue]")
+        all_rooms = list(api.rooms.list())
 
-        if not rooms:
+        if not all_rooms:
             console.print("[yellow]No rooms found[/yellow]")
             return
 
-        console.print(f"[green]Found {len(rooms)} rooms:[/green]\n")
-        for room in sorted(rooms, key=lambda x: x.title):
-            rprint(f"[bold]{room.title}[/bold]: {room.id}")
+        # Get sorted and limited rooms
+        limited_rooms, total_count, displayed_count = get_sorted_and_limited_rooms(
+            all_rooms, max_rooms
+        )
+
+        # Display summary
+        if displayed_count < total_count:
+            console.print(
+                f"[green]Showing {displayed_count} of {total_count} rooms "
+                f"(sorted by recent activity):[/green]\n"
+            )
+        else:
+            console.print(
+                f"[green]Found {displayed_count} rooms "
+                f"(sorted by recent activity):[/green]\n"
+            )
+
+        # Display rooms
+        display_rooms_with_activity(limited_rooms)
 
     except Exception as e:
         if "401" in str(e) or "Unauthorized" in str(e):

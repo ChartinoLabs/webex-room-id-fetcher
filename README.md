@@ -48,6 +48,9 @@ Then, set up Webex OAuth credentials:
 # Webex OAuth Configuration
 WEBEX_CLIENT_ID=your_client_id_here
 WEBEX_CLIENT_SECRET=your_client_secret_here
+
+# Optional: Set default maximum rooms to display (default: 100)
+WEBEX_MAX_ROOMS=50
 ```
 
 Then, make the script executable:
@@ -84,6 +87,14 @@ This will open your browser for Webex authentication. After authorizing, tokens 
 ### List All Rooms
 
 ```bash
+# List up to 100 rooms (default), sorted by most recent activity
+./main.py list-rooms
+
+# Limit to specific number of rooms
+./main.py list-rooms --max-rooms 10
+
+# Use environment variable to set default limit
+export WEBEX_MAX_ROOMS=20
 ./main.py list-rooms
 ```
 
@@ -108,12 +119,17 @@ Development Team: Y2lzY29zcGFyazovL3VzL1JPT00vZGV2dGVhbQ==
 DevOps: Y2lzY29zcGFyazovL3VzL1JPT00vZGV2b3Bz
 Mobile Dev: Y2lzY29zcGFyazovL3VzL1JPT00vbW9iaWxlZGV2
 
-# List all available rooms
+# List rooms (sorted by recent activity, limited to 100 by default)
 $ ./main.py list-rooms
-Found 15 rooms:
+Found 15 rooms (sorted by recent activity):
 
-Engineering: Y2lzY29zcGFyazovL3VzL1JPT00vZW5naW5lZXJpbmc=
-Marketing Team: Y2lzY29zcGFyazovL3VzL1JPT00vbWFya2V0aW5n
+Engineering: Y2lzY29zcGFyazovL3VzL1JPT00vZW5naW5lZXJpbmc= (2024-01-15 14:30)
+Marketing Team: Y2lzY29zcGFyazovL3VzL1JPT00vbWFya2V0aW5n (2024-01-14 09:15)
+...
+
+# List only 5 most recent rooms
+$ ./main.py list-rooms --max-rooms 5
+Showing 5 of 15 rooms (sorted by recent activity):
 ...
 ```
 
@@ -147,9 +163,12 @@ Find a Webex room ID by name.
 - `--exact, -e`: Require exact name match (case-sensitive)
 - `--list, -l`: List all rooms if no match found
 
-### `list-rooms`
+### `list-rooms [OPTIONS]`
 
-List all Webex rooms you're a member of with their IDs.
+List Webex rooms you're a member of, sorted by most recent activity.
+
+**Options:**
+- `--max-rooms INTEGER`: Maximum number of rooms to display (default: 100). Can also be set via `WEBEX_MAX_ROOMS` environment variable.
 
 ### `auth`
 
