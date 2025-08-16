@@ -1,0 +1,48 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install dependencies
+        run: uv sync --locked --all-extras --dev
+
+      - name: Format and lint Python
+        run: uv run pre-commit run --all-files --show-diff-on-failure
+
+      - name: Run unit tests
+        run: uv run pytest tests/unit
+
+  notify:
+    needs: [test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify success
+        if: ${{ contains(needs.*.result, 'success') && !contains(needs.*.result, 'failure') }}
+        run: |
+          echo "## ✨ Pipeline Built Successfully ✨"
+          echo "* [Workflow Details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+
+      - name: Notify failure
+        if: ${{ contains(needs.*.result, 'failure') }}
+        run: |
+          echo "## 💀 Pipeline Build Failure 💀"
+          echo "* [Workflow Details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
