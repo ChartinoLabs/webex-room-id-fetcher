@@ -245,12 +245,14 @@ def find(
         api = get_webex_api()
 
         # Get all rooms
-        console.print("[blue]Fetching rooms...[/blue]")
-        rooms = list(api.rooms.list())
+        with console.status("[blue]Fetching rooms...[/blue]", spinner="arc"):
+            rooms = list(api.rooms.list())
 
         if not rooms:
             console.print("[yellow]No rooms found[/yellow]")
             raise typer.Exit(0)
+
+        console.print(f"[green]✓[/green] Fetched {len(rooms)} rooms")
 
         # Search for matching rooms
         found_rooms = search_rooms(rooms, room_name, exact_match)
@@ -336,17 +338,20 @@ def list_rooms(
     try:
         api = get_webex_api()
 
-        console.print(f"[blue]Fetching rooms (max: {max_rooms})...[/blue]")
-        all_rooms = list(api.rooms.list())
+        with console.status("[blue]Fetching rooms...[/blue]", spinner="arc"):
+            all_rooms = list(api.rooms.list())
 
         if not all_rooms:
             console.print("[yellow]No rooms found[/yellow]")
             return
 
+        console.print(f"[green]✓[/green] Fetched {len(all_rooms)} rooms")
+
         # Get sorted and limited rooms
-        limited_rooms, total_count, displayed_count = get_sorted_and_limited_rooms(
-            all_rooms, max_rooms
-        )
+        with console.status("[blue]Sorting by activity...[/blue]", spinner="line"):
+            limited_rooms, total_count, displayed_count = get_sorted_and_limited_rooms(
+                all_rooms, max_rooms
+            )
 
         # Display summary
         if displayed_count < total_count:
