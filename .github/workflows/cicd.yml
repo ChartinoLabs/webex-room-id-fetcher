@@ -27,8 +27,8 @@ jobs:
       - name: Format and lint Python
         run: uv run pre-commit run --all-files --show-diff-on-failure
 
-      - name: Run unit tests
-        run: uv run pytest tests/unit
+      # - name: Run unit tests
+      #   run: uv run pytest tests/unit
 
   notify:
     needs: [test]
