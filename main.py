@@ -1,4 +1,14 @@
-#!/usr/bin/env -S uv run python
+#!/usr/bin/env -S uv run --script --quiet
+# /// script
+# requires-python = ">=3.13"
+# dependencies = [
+#     "python-dotenv>=1.1.1",
+#     "requests>=2.32.0",
+#     "rich>=14.1.0",
+#     "typer>=0.16.0",
+#     "webexpythonsdk>=2.0.5",
+# ]
+# ///
 """Webex Room ID Fetcher - Find Webex room IDs by name."""
 
 import json
