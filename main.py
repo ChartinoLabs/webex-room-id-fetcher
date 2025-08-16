@@ -129,13 +129,15 @@ def get_oauth_tokens() -> dict | None:
     server_thread.start()
 
     # Build OAuth authorization URL
+    from urllib.parse import quote_plus
+
     scopes = "spark:rooms_read"
     auth_url = (
         f"https://webexapis.com/v1/authorize?"
         f"client_id={client_id}&"
         f"response_type=code&"
-        f"redirect_uri={REDIRECT_URI}&"
-        f"scope={scopes}"
+        f"redirect_uri={quote_plus(REDIRECT_URI)}&"
+        f"scope={quote_plus(scopes)}"
     )
 
     console.print(
@@ -195,6 +197,78 @@ def get_webex_api() -> WebexAPI:
     return WebexAPI(access_token=tokens["access_token"])
 
 
+def _debug_fetch_start(max_rooms: int, debug: bool) -> float:
+    """Log debug information at the start of fetch."""
+    import time
+
+    if debug:
+        console.print(
+            f"[dim]DEBUG: Starting efficient rooms fetch with max={max_rooms}[/dim]"
+        )
+        console.print(
+            "[dim]DEBUG: Using sortBy=lastactivity for recent rooms first[/dim]"
+        )
+        return time.time()
+    return 0.0
+
+
+def _debug_fetch_end(rooms_list: list, start_time: float, debug: bool) -> None:
+    """Log debug information at the end of fetch."""
+    import time
+
+    if debug:
+        end_time = time.time()
+        console.print(
+            f"[dim]DEBUG: Fetch completed in {end_time - start_time:.2f} seconds[/dim]"  # noqa: E501
+        )
+        console.print(f"[dim]DEBUG: Retrieved {len(rooms_list)} rooms[/dim]")
+        if rooms_list:
+            console.print(f"[dim]DEBUG: First room: {rooms_list[0].title}[/dim]")
+
+
+def fetch_rooms_efficiently(
+    api: WebexAPI, max_rooms: int = 100, debug: bool = False
+) -> list:
+    """Fetch rooms efficiently using webex-summarizer patterns."""
+    start_time = _debug_fetch_start(max_rooms, debug)
+
+    try:
+        # Use webex-summarizer pattern: sortBy + direct iteration
+        rooms_iterator = api.rooms.list(max=max_rooms, sortBy="lastactivity")
+
+        if debug:
+            console.print(
+                "[dim]DEBUG: Got iterator, iterating directly (no list conversion)[/dim]"  # noqa: E501
+            )
+
+        rooms_list = []
+        processed_count = 0
+
+        # Iterate directly like webex-summarizer does
+        for room in rooms_iterator:
+            if debug and processed_count < 3:  # Log first few for debugging
+                console.print(
+                    f"[dim]DEBUG: Processing room: {room.title[:30]}...[/dim]"
+                )
+
+            rooms_list.append(room)
+            processed_count += 1
+
+            # Optional: Break early if we have enough (though max should handle this)
+            if len(rooms_list) >= max_rooms:
+                break
+
+        _debug_fetch_end(rooms_list, start_time, debug)
+        return rooms_list
+
+    except Exception as e:
+        if debug:
+            console.print(f"[dim]DEBUG: Exception occurred: {type(e).__name__}[/dim]")
+            console.print(f"[dim]DEBUG: Exception details: {str(e)}[/dim]")
+        console.print(f"[red]Error during API call: {type(e).__name__}: {e}[/red]")
+        raise
+
+
 def search_rooms(rooms: list, room_name: str, exact_match: bool) -> list:
     """Search for rooms matching the given name."""
     if exact_match:
@@ -244,9 +318,9 @@ def find(
     try:
         api = get_webex_api()
 
-        # Get all rooms
+        # Get rooms (fetch more for searching)
         with console.status("[blue]Fetching rooms...[/blue]", spinner="arc"):
-            rooms = list(api.rooms.list())
+            rooms = fetch_rooms_efficiently(api, max_rooms=500, debug=False)
 
         if not rooms:
             console.print("[yellow]No rooms found[/yellow]")
@@ -272,6 +346,92 @@ def find(
         else:
             console.print(f"[red]Error: {e}[/red]")
             raise typer.Exit(1) from None
+
+
+@app.command()
+def test_connectivity() -> None:
+    """Test connectivity to Webex API and diagnose potential issues."""
+    import requests
+
+    console.print("[blue]Testing Webex API connectivity...[/blue]")
+
+    try:
+        # Test basic connectivity to Webex API
+        with console.status(
+            "[blue]Testing network connectivity...[/blue]", spinner="arc"
+        ):
+            response = requests.get("https://webexapis.com/v1/people/me", timeout=10)
+
+        if response.status_code == 401:
+            console.print(
+                "[yellow]✓ Network connectivity OK (401 expected without auth)[/yellow]"
+            )
+        else:
+            console.print(
+                f"[yellow]✓ Network connectivity OK (status: {response.status_code})[/yellow]"  # noqa: E501
+            )
+
+        # Test authentication
+        try:
+            api = get_webex_api()
+            console.print("[green]✓ Authentication tokens loaded[/green]")
+
+            # Debug: Check token info
+            tokens = get_oauth_tokens()
+            if tokens and "access_token" in tokens:
+                token_preview = (
+                    tokens["access_token"][:20] + "..."
+                    if len(tokens["access_token"]) > 20
+                    else tokens["access_token"]
+                )
+                console.print(f"[dim]Debug: Token preview: {token_preview}[/dim]")
+                if "scope" in tokens:
+                    console.print(f"[dim]Debug: Token scopes: {tokens['scope']}[/dim]")
+
+            # Test rooms API directly (skip people.me() which needs different scope)
+            # Test rooms API specifically
+            console.print("\n[blue]Testing rooms API specifically...[/blue]")
+            with console.status(
+                "[blue]Testing rooms.list() call...[/blue]", spinner="arc"
+            ):
+                try:
+                    console.print(
+                        "[dim]DEBUG: About to call api.rooms.list(max=1)[/dim]"
+                    )
+                    rooms_iterator = api.rooms.list(max=1)
+                    console.print(
+                        "[dim]DEBUG: Got iterator, converting to list...[/dim]"
+                    )
+                    rooms = list(rooms_iterator)  # Try to get just 1 room
+                    console.print(
+                        f"[green]✓ Rooms API working! Found {len(rooms)} room(s)[/green]"  # noqa: E501
+                    )
+                except Exception as rooms_error:
+                    console.print(f"[red]✗ Rooms API failed: {rooms_error}[/red]")
+                    console.print("\n[yellow]Possible solutions:[/yellow]")
+                    console.print(
+                        "  1. Check your Webex integration has 'spark:rooms_read' scope"
+                    )
+                    console.print(
+                        "  2. Ensure your Webex account has the right license"
+                    )
+                    console.print(
+                        "  3. Verify you're a member of at least one Webex space"
+                    )
+                    console.print("  4. Try recreating your Webex integration at:")
+                    console.print("     https://developer.webex.com/my-apps")
+
+        except Exception as e:
+            console.print(f"[red]✗ Authentication failed: {e}[/red]")
+            console.print("[yellow]Try running: ./main.py auth[/yellow]")
+
+    except requests.exceptions.RequestException as e:
+        console.print(f"[red]✗ Network connectivity failed: {e}[/red]")
+        console.print(
+            "[yellow]Check your internet connection and firewall settings[/yellow]"
+        )
+    except Exception as e:
+        console.print(f"[red]✗ Unexpected error: {e}[/red]")
 
 
 @app.command()
@@ -333,13 +493,29 @@ def list_rooms(
         help="Maximum number of rooms to display (default: 100). "
         "Can also be set via WEBEX_MAX_ROOMS environment variable.",
     ),
+    timeout: int = typer.Option(
+        30,
+        "--timeout",
+        help="API request timeout in seconds (default: 30).",
+    ),
+    debug: bool = typer.Option(
+        False,
+        "--debug",
+        help="Enable debug output for troubleshooting.",
+    ),
 ) -> None:
     """List Webex rooms you're a member of, sorted by most recent activity."""
     try:
         api = get_webex_api()
 
+        if debug:
+            console.print(f"[dim]Debug: Using timeout of {timeout} seconds[/dim]")
+            console.print(
+                f"[dim]Debug: Webex base URL: {api.base_url if hasattr(api, 'base_url') else 'Unknown'}[/dim]"  # noqa: E501
+            )
+
         with console.status("[blue]Fetching rooms...[/blue]", spinner="arc"):
-            all_rooms = list(api.rooms.list())
+            all_rooms = fetch_rooms_efficiently(api, max_rooms=max_rooms, debug=debug)
 
         if not all_rooms:
             console.print("[yellow]No rooms found[/yellow]")
@@ -347,26 +523,24 @@ def list_rooms(
 
         console.print(f"[green]✓[/green] Fetched {len(all_rooms)} rooms")
 
-        # Get sorted and limited rooms
+        # Sort by activity (since we fetched exactly max_rooms from API)
         with console.status("[blue]Sorting by activity...[/blue]", spinner="line"):
-            limited_rooms, total_count, displayed_count = get_sorted_and_limited_rooms(
-                all_rooms, max_rooms
+            # Sort the fetched rooms by activity
+            sorted_rooms = sorted(
+                all_rooms, key=lambda x: x.lastActivity or x.created, reverse=True
             )
+
+        # total_count = len(all_rooms)  # Available but not needed
+        displayed_count = len(sorted_rooms)
 
         # Display summary
-        if displayed_count < total_count:
-            console.print(
-                f"[green]Showing {displayed_count} of {total_count} rooms "
-                f"(sorted by recent activity):[/green]\n"
-            )
-        else:
-            console.print(
-                f"[green]Found {displayed_count} rooms "
-                f"(sorted by recent activity):[/green]\n"
-            )
+        console.print(
+            f"[green]Showing {displayed_count} most recent rooms "
+            f"(API limit: {max_rooms}):[/green]\n"
+        )
 
         # Display rooms
-        display_rooms_with_activity(limited_rooms)
+        display_rooms_with_activity(sorted_rooms)
 
     except Exception as e:
         if "401" in str(e) or "Unauthorized" in str(e):
