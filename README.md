@@ -6,10 +6,11 @@ A command-line tool to quickly find Webex room/space IDs by name using the Webex
 
 - **OAuth Authentication**: Secure authentication with Webex using OAuth 2.0 flow
 - **Flexible Search**: Find rooms by exact or partial name matching
-- **UV Integration**: Uses UV for dependency management with direct script execution
+- **Self-Contained Script**: Uses UV with PEP-723 inline metadata for portable execution
 - **Token Caching**: Automatically handles and caches authentication tokens
 - **Rich CLI**: Beautiful command-line interface with colored output
 - **Multiple Commands**: Find rooms, list all rooms, or re-authenticate
+- **Runs Anywhere**: Execute from any directory via shell aliases or direct path
 
 ## Prerequisites
 
@@ -28,9 +29,11 @@ cd webex-room-id-fetcher
 
 Then, install dependencies using UV:
 
-```bash
-uv sync
-```
+   ```bash
+   uv sync
+   ```
+
+   > **Note**: The script uses PEP-723 inline metadata, so it can also run independently without the project setup. Dependencies will be automatically managed by UV when the script is executed.
 
 Then, set up Webex OAuth credentials:
 
@@ -145,7 +148,9 @@ alias webex-rooms="/path/to/webex-room-id-fetcher/main.py list-rooms"
 Then use from anywhere:
 
 ```bash
+# These work from any directory thanks to PEP-723 inline metadata
 webex-room-id "My Room Name"
+webex-rooms --max-rooms 10
 ```
 
 ## Command Reference
@@ -204,7 +209,8 @@ chmod +x main.py
 
 - **Authentication**: Uses OAuth 2.0 authorization code flow
 - **Token Storage**: Tokens are cached in `~/.webex_tokens.json`
-- **Dependencies**: Managed with UV for reproducible environments
+- **Dependencies**: Self-contained using PEP-723 inline metadata with UV
+- **Portability**: Script runs from any directory without project setup
 - **API**: Uses the official Webex Python SDK
 
 ## Security Notes
