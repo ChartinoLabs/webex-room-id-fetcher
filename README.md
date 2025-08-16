@@ -19,38 +19,42 @@ A command-line tool to quickly find Webex room/space IDs by name using the Webex
 
 ## Installation
 
-1. Clone this repository:
-   ```bash
-   git clone <repository-url>
-   cd webex-room-id-fetcher
-   ```
+First, clone this repository:
 
-2. Install dependencies using UV:
-   ```bash
-   uv sync
-   ```
+```bash
+git clone <repository-url>
+cd webex-room-id-fetcher
+```
 
-3. Set up Webex OAuth credentials:
-   - Go to [Webex Developer Portal](https://developer.webex.com/my-apps)
-   - Click "Create a New App" → "Create an Integration"
-   - Fill in the details:
-     - **Integration Name**: Your app name (e.g., "Room ID Fetcher")
-     - **Description**: Brief description of your tool
-     - **Redirect URI**: `http://localhost:6001/callback`
-     - **Scopes**: `spark:rooms_read`
-   - Copy the Client ID and Client Secret
+Then, install dependencies using UV:
 
-4. Create a `.env` file in the project root:
-   ```bash
-   # Webex OAuth Configuration
-   WEBEX_CLIENT_ID=your_client_id_here
-   WEBEX_CLIENT_SECRET=your_client_secret_here
-   ```
+```bash
+uv sync
+```
 
-5. Make the script executable:
-   ```bash
-   chmod +x main.py
-   ```
+Then, set up Webex OAuth credentials:
+
+- Go to [Webex Developer Portal](https://developer.webex.com/my-apps)
+- Click "Create a New App" → "Create an Integration"
+- Fill in the details:
+    - **Integration Name**: Your app name (e.g., "Room ID Fetcher")
+    - **Description**: Brief description of your tool
+    - **Redirect URI**: `http://localhost:6001/callback`
+    - **Scopes**: `spark:rooms_read`
+- Copy the Client ID and Client Secret
+- Create a `.env` file in the project root:
+
+```bash
+# Webex OAuth Configuration
+WEBEX_CLIENT_ID=your_client_id_here
+WEBEX_CLIENT_SECRET=your_client_secret_here
+```
+
+Then, make the script executable:
+
+```bash
+chmod +x main.py
+```
 
 ## Usage
 
@@ -131,37 +135,48 @@ webex-room-id "My Room Name"
 ## Command Reference
 
 ### `find <room_name>`
+
 Find a Webex room ID by name.
 
 **Arguments:**
+
 - `room_name`: Name or partial name of the room to find
 
 **Options:**
+
 - `--exact, -e`: Require exact name match (case-sensitive)
 - `--list, -l`: List all rooms if no match found
 
 ### `list-rooms`
+
 List all Webex rooms you're a member of with their IDs.
 
 ### `auth`
+
 Authenticate with Webex or re-authenticate if already authenticated.
 
 ## Troubleshooting
 
 ### Authentication Issues
+
 If you get authentication errors:
+
 1. Run `./main.py auth` to re-authenticate
 2. Check that your Client ID and Client Secret are correct
 3. Ensure the redirect URI in your Webex integration is exactly: `http://localhost:6001/callback`
 
 ### Room Not Found
+
 If a room isn't found:
+
 - Try partial matching without `--exact`
 - Use `--list` to see all available rooms
 - Check that you're a member of the room you're searching for
 
 ### Permission Issues
+
 Make sure the script is executable:
+
 ```bash
 chmod +x main.py
 ```
