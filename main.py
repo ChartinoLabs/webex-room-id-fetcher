@@ -31,7 +31,7 @@ REDIRECT_URI = f"http://localhost:{REDIRECT_PORT}/callback"
 class OAuthCallbackHandler(BaseHTTPRequestHandler):
     """Handle OAuth callback from Webex."""
 
-    def do_GET(self) -> None:
+    def do_GET(self) -> None:  # noqa: N802
         """Handle GET request with authorization code."""
         if self.path.startswith("/callback"):
             # Extract authorization code from URL
@@ -64,13 +64,14 @@ class OAuthCallbackHandler(BaseHTTPRequestHandler):
                 self.send_header("Content-type", "text/html")
                 self.end_headers()
                 self.wfile.write(
-                    b"<h1>Authentication Failed</h1><p>No authorization code received.</p>"
+                    b"<h1>Authentication Failed</h1>"
+                    b"<p>No authorization code received.</p>"
                 )
         else:
             self.send_response(404)
             self.end_headers()
 
-    def log_message(self, format: str, *args) -> None:
+    def log_message(self, format: str, *args: object) -> None:
         """Suppress server logs."""
         pass
 
@@ -111,7 +112,7 @@ def get_oauth_tokens() -> dict | None:
     server = HTTPServer(("localhost", REDIRECT_PORT), OAuthCallbackHandler)
     server.auth_code = None
 
-    def run_server():
+    def run_server() -> None:
         server.handle_request()  # Handle one request then stop
 
     server_thread = Thread(target=run_server)
@@ -184,6 +185,41 @@ def get_webex_api() -> WebexAPI:
     return WebexAPI(access_token=tokens["access_token"])
 
 
+def search_rooms(rooms: list, room_name: str, exact_match: bool) -> list:
+    """Search for rooms matching the given name."""
+    if exact_match:
+        return [room for room in rooms if room.title == room_name]
+    else:
+        room_name_lower = room_name.lower()
+        return [room for room in rooms if room_name_lower in room.title.lower()]
+
+
+def display_found_rooms(found_rooms: list) -> None:
+    """Display found rooms to the user."""
+    if len(found_rooms) == 1:
+        room = found_rooms[0]
+        console.print(f"[green]✓ Found room: {room.title}[/green]")
+        rprint(f"[bold]{room.id}[/bold]")
+    else:
+        console.print(f"[yellow]Found {len(found_rooms)} matching rooms:[/yellow]")
+        for room in found_rooms:
+            rprint(f"[bold]{room.title}[/bold]: {room.id}")
+
+
+def handle_no_matches(room_name: str, rooms: list, list_all: bool) -> None:
+    """Handle the case when no rooms match the search criteria."""
+    console.print(f"[red]No room found matching '{room_name}'[/red]")
+
+    if list_all:
+        console.print("\n[blue]All available rooms:[/blue]")
+        for room in sorted(rooms, key=lambda x: x.title):
+            rprint(f"• {room.title}")
+    else:
+        console.print("\n[dim]Use --list to see all available rooms[/dim]")
+
+    raise typer.Exit(1)
+
+
 @app.command()
 def find(
     room_name: str = typer.Argument(..., help="Name of the Webex room to find"),
@@ -206,40 +242,13 @@ def find(
             console.print("[yellow]No rooms found[/yellow]")
             raise typer.Exit(0)
 
-        # Search for matching room
-        found_rooms = []
-
-        if exact_match:
-            found_rooms = [room for room in rooms if room.title == room_name]
-        else:
-            # Case-insensitive partial match
-            room_name_lower = room_name.lower()
-            found_rooms = [
-                room for room in rooms if room_name_lower in room.title.lower()
-            ]
+        # Search for matching rooms
+        found_rooms = search_rooms(rooms, room_name, exact_match)
 
         if found_rooms:
-            if len(found_rooms) == 1:
-                room = found_rooms[0]
-                console.print(f"[green]✓ Found room: {room.title}[/green]")
-                rprint(f"[bold]{room.id}[/bold]")
-            else:
-                console.print(
-                    f"[yellow]Found {len(found_rooms)} matching rooms:[/yellow]"
-                )
-                for room in found_rooms:
-                    rprint(f"[bold]{room.title}[/bold]: {room.id}")
+            display_found_rooms(found_rooms)
         else:
-            console.print(f"[red]No room found matching '{room_name}'[/red]")
-
-            if list_all:
-                console.print("\n[blue]All available rooms:[/blue]")
-                for room in sorted(rooms, key=lambda x: x.title):
-                    rprint(f"• {room.title}")
-            else:
-                console.print("\n[dim]Use --list to see all available rooms[/dim]")
-
-            raise typer.Exit(1)
+            handle_no_matches(room_name, rooms, list_all)
 
     except Exception as e:
         if "401" in str(e) or "Unauthorized" in str(e):
@@ -247,10 +256,10 @@ def find(
             if TOKENS_FILE.exists():
                 TOKENS_FILE.unlink()
             console.print("Please run the command again to re-authenticate.")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
         else:
             console.print(f"[red]Error: {e}[/red]")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
 
 @app.command()
@@ -265,7 +274,7 @@ def auth() -> None:
         console.print("[green]✓ Authentication complete![/green]")
     except Exception as e:
         console.print(f"[red]Authentication failed: {e}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 @app.command()
@@ -290,10 +299,10 @@ def list_rooms() -> None:
             console.print(
                 "[red]Authentication failed. Please run 'auth' command first.[/red]"
             )
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
         else:
             console.print(f"[red]Error: {e}[/red]")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
 
 if __name__ == "__main__":
