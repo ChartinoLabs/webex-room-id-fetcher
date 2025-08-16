@@ -8,7 +8,7 @@ A command-line tool to quickly find Webex room/space IDs by name using the Webex
 - **Flexible Search**: Find rooms by exact or partial name matching
 - **Self-Contained Script**: Uses UV with PEP-723 inline metadata for portable execution
 - **Token Caching**: Automatically handles and caches authentication tokens
-- **Rich CLI**: Beautiful command-line interface with colored output
+- **Rich CLI**: Beautiful command-line interface with colored output and progress indicators
 - **Multiple Commands**: Find rooms, list all rooms, or re-authenticate
 - **Runs Anywhere**: Execute from any directory via shell aliases or direct path
 
@@ -112,6 +112,8 @@ export WEBEX_MAX_ROOMS=20
 ```bash
 # Find a room named "Marketing Team"
 $ ./main.py find "Marketing Team"
+⠋ Fetching rooms...
+✓ Fetched 45 rooms
 ✓ Found room: Marketing Team
 Y2lzY29zcGFyazovL3VzL1JPT00vYWJjZGVmZ2g=
 
@@ -124,6 +126,9 @@ Mobile Dev: Y2lzY29zcGFyazovL3VzL1JPT00vbW9iaWxlZGV2
 
 # List rooms (sorted by recent activity, limited to 100 by default)
 $ ./main.py list-rooms
+⠋ Fetching rooms...
+✓ Fetched 15 rooms
+⠤ Sorting by activity...
 Found 15 rooms (sorted by recent activity):
 
 Engineering: Y2lzY29zcGFyazovL3VzL1JPT00vZW5naW5lZXJpbmc= (2024-01-15 14:30)
