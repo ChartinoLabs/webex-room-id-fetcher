@@ -316,7 +316,8 @@ def get_sorted_and_limited_rooms(
 @app.command()
 def list_rooms(
     max_rooms: int = typer.Option(
-        default=lambda: int(os.getenv("WEBEX_MAX_ROOMS", "100")),
+        100,
+        envvar="WEBEX_MAX_ROOMS",
         help="Maximum number of rooms to display (default: 100). "
         "Can also be set via WEBEX_MAX_ROOMS environment variable.",
     ),
